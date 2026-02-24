@@ -1,6 +1,8 @@
 # Dossier contenant les modèles entraînés
-model/
-
+/Workshop_2/cat_detector/model/
+/Workshop_2/cat_detector/pycache/
+/Workshop_2/cat_detector/solution.ipynb
+/Workshop_2/cat_detector/raw.ipynb
 # Fichiers Python compilés
 __pycache__/
 *.py[cod]
