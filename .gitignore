@@ -1,0 +1,19 @@
+# Dossier contenant les modèles entraînés
+model/
+
+# Fichiers Python compilés
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# Environnements virtuels
+venv/
+env/
+ENV/
+
+# Fichiers système
+.DS_Store
+Thumbs.db
