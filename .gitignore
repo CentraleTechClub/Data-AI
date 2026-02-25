@@ -1,8 +1,10 @@
 # Dossier contenant les modèles entraînés
 /Workshop_2/cat_detector/model/
+/Workshop_2/linear_regression/model/
 /Workshop_2/cat_detector/pycache/
 /Workshop_2/cat_detector/solution.ipynb
 /Workshop_2/cat_detector/raw.ipynb
+/Workshop_2/linear_regression_simple/linear.ipynb
 # Fichiers Python compilés
 __pycache__/
 *.py[cod]
