@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Authentification faciale</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f0f2f5;
+      --surface: #ffffff;
+      --text: #1a1a2e;
+      --muted: #6b7280;
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --radius: 16px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: var(--text);
+      padding: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    header { text-align: center; }
+    header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.3px; }
+    header p  { margin-top: 6px; font-size: 0.9rem; color: var(--muted); }
+
+    .camera-wrap {
+      position: relative;
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #0f0f0f;
+      aspect-ratio: 4/3;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transform: scaleX(-1); /* mirror */
+    }
+
+    .scan-line {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .camera-wrap.scanning .scan-line {
+      opacity: 1;
+      animation: scanMove 1.4s ease-in-out infinite;
+    }
+
+    @keyframes scanMove {
+      0%   { top: 0%;   }
+      50%  { top: calc(100% - 3px); }
+      100% { top: 0%;   }
+    }
+
+    canvas { display: none; }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.18s, transform 0.1s;
+      letter-spacing: 0.2px;
+    }
+    button:hover:not(:disabled) { background: var(--accent-hover); }
+    button:active:not(:disabled) { transform: scale(0.98); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    #status {
+      font-size: 0.88rem;
+      color: var(--muted);
+      min-height: 1.2em;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <header>
+      <h1>Authentification faciale</h1>
+      <p>Placez votre visage dans le cadre, puis appuyez sur Authentifier.</p>
+    </header>
+
+    <div class="camera-wrap" id="cameraWrap">
+      <video id="video" autoplay playsinline></video>
+      <div class="scan-line"></div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <button id="authBtn">Authentifier</button>
+    <p id="status">En attente de la caméra&hellip;</p>
+  </div>
+
+  <script>
+    const video   = document.getElementById('video');
+    const canvas  = document.getElementById('canvas');
+    const authBtn = document.getElementById('authBtn');
+    const status  = document.getElementById('status');
+    const wrap    = document.getElementById('cameraWrap');
+
+    // Démarrage de la webcam
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      .then(stream => {
+        video.srcObject = stream;
+        status.textContent = 'Caméra prête.';
+        authBtn.disabled = false;
+      })
+      .catch(() => {
+        status.textContent = 'Accès à la caméra refusé.';
+      });
+
+    authBtn.disabled = true;
+
+    authBtn.addEventListener('click', async () => {
+      authBtn.disabled = true;
+      status.textContent = 'Analyse en cours…';
+      wrap.classList.add('scanning');
+
+      // Capture de l'image
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const imageData = canvas.toDataURL('image/jpeg', 0.85);
+
+      // Courte pause pour laisser l'animation de scan se jouer
+      await new Promise(r => setTimeout(r, 1200));
+
+      try {
+        const res  = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: imageData }),
+        });
+        const data = await res.json();
+
+        wrap.classList.remove('scanning');
+
+        if (data.authorized) {
+          window.location.href = '/success';
+        } else {
+          window.location.href = '/denied';
+        }
+      } catch {
+        wrap.classList.remove('scanning');
+        status.textContent = 'Erreur de connexion au serveur. Le modèle est-il entraîné ?';
+        authBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
