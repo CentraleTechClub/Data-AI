@@ -27,6 +27,7 @@ ENV/
 # Fichiers système
 .DS_Store
 Thumbs.db
+~$*
 
 # Others
 inspiration.txt
