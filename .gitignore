@@ -1,0 +1,71 @@
+# ===== Secrets / environment variables =====
+# Real env files are ignored; template/example env files stay tracked.
+.env
+.env.*
+*.env
+!*example.env
+!*.env.example
+
+# Other common credential/key files
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+*.gguf.json
+
+# ===== Model weights & trained artifacts =====
+# These are generated/downloaded by running the notebooks, not source material.
+*.pkl
+*.pt
+*.pth
+*.safetensors
+*.gguf
+*.onnx
+*.ckpt
+*.pb
+pytorch_model.bin
+**/model/
+**/models/
+**/checkpoints/
+**/*_weights/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+# Environnements virtuels
+venv/
+env/
+ENV/
+.venv/
+
+# ===== Fichiers système =====
+.DS_Store
+Thumbs.db
+desktop.ini
+~$*
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# ===== AI/LLM tool local config =====
+.claude/
+.cursor/
+.windsurf/
+.continue/
+.aider*
+
+# Backup files
+*.bak
+
+# Others
+inspiration.txt

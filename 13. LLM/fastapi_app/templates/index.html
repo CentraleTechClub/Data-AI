@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistant IA Local de Dany Anderson</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Assistant IA Local de Dany Anderson</h1>
+        <p class="subtitle">Propulsé par Gemma 3 1B de Google DeepMind</p>
+    </header>
+
+    <main class="container">
+        <div class="panel input-panel">
+            <h2>Votre prompt</h2>
+            <form method="POST">
+                <textarea
+                    name="prompt"
+                    id="prompt"
+                    placeholder="Entrez votre question ici..."
+                    rows="10"
+                ></textarea>
+                <button type="submit" class="btn-submit">Demander à l'IA</button>
+            </form>
+        </div>
+
+        <div class="panel result-panel">
+            <h2>Résultat</h2>
+            <div class="result-box" id="result-box">
+                {% if resultat %}
+                    <p>{{ resultat }}</p>
+                {% else %}
+                    <p class="placeholder">Le résultat apparaîtra ici après votre demande...</p>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.querySelector('form').addEventListener('submit', function () {
+            const box = document.getElementById('result-box');
+            const btn = document.querySelector('.btn-submit');
+            box.innerHTML = '<p class="generating">Génération en cours<span class="dots"></span></p>';
+            btn.disabled = true;
+            btn.textContent = 'Génération en cours...';
+            let count = 0;
+            setInterval(function () {
+                document.querySelector('.dots').textContent = '.'.repeat((++count % 3) + 1);
+            }, 400);
+        });
+    </script>
+</body>
+</html>

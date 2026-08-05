@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Authentification faciale</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #f0f2f5;
+      --surface:      #ffffff;
+      --text:         #1a1a2e;
+      --muted:        #6b7280;
+      --accent:       #4f46e5;
+      --accent-hover: #4338ca;
+      --radius:       16px;
+      --shadow:       0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background: var(--bg);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: var(--text);
+      padding: 32px 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    header { text-align: center; }
+    header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.3px; }
+    header p  { margin-top: 6px; font-size: 0.9rem; color: var(--muted); }
+
+    .camera-wrap {
+      position: relative;
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #0f0f0f;
+      aspect-ratio: 4/3;
+    }
+    #video { width: 100%; height: 100%; object-fit: cover; display: block; transform: scaleX(-1); }
+
+    .scan-line {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .camera-wrap.scanning .scan-line { opacity: 1; animation: scanMove 1.4s ease-in-out infinite; }
+    @keyframes scanMove {
+      0%  { top: 0%; } 50% { top: calc(100% - 3px); } 100% { top: 0%; }
+    }
+
+    canvas { display: none; }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.18s, transform 0.1s;
+    }
+    button:hover:not(:disabled) { background: var(--accent-hover); }
+    button:active:not(:disabled) { transform: scale(0.98); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    #status { font-size: 0.88rem; color: var(--muted); min-height: 1.2em; text-align: center; }
+
+    /* ── Stats card ── */
+    .stats-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px 32px;
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .stats-header { display: flex; align-items: baseline; justify-content: space-between; }
+    .stats-title  { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .model-tag    { font-size: 0.73rem; padding: 2px 9px; background: #eef2ff; color: var(--accent); border-radius: 6px; font-weight: 600; }
+
+    .metric-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .metric-cell {
+      background: #f8fafc; border-radius: 10px; padding: 12px 6px;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .metric-val { font-size: 1.05rem; font-weight: 700; color: var(--accent); }
+    .metric-key { font-size: 0.65rem; color: var(--muted); text-align: center; line-height: 1.3; }
+
+    #trainChart { width: 100%; height: auto; display: block; overflow: visible; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <header>
+      <h1>Authentification faciale</h1>
+      <p>Placez votre visage dans le cadre, puis appuyez sur Authentifier.</p>
+    </header>
+
+    <div class="camera-wrap" id="cameraWrap">
+      <video id="video" autoplay playsinline></video>
+      <div class="scan-line"></div>
+    </div>
+    <canvas id="canvas"></canvas>
+
+    <button id="authBtn" disabled>Authentifier</button>
+    <p id="status">En attente de la caméra&hellip;</p>
+  </div>
+
+  <div class="stats-card" id="statsCard" style="display:none">
+    <div class="stats-header">
+      <span class="stats-title">Entraînement du modèle</span>
+      <span class="model-tag" id="modelTag">YOLOv8n-cls</span>
+    </div>
+    <div class="metric-row">
+      <div class="metric-cell"><span class="metric-val" id="mEpochs">—</span><span class="metric-key">Époques</span></div>
+      <div class="metric-cell"><span class="metric-val" id="mAcc">—</span><span class="metric-key">Précision val.</span></div>
+      <div class="metric-cell"><span class="metric-val" id="mLoss">—</span><span class="metric-key">Perte val.</span></div>
+      <div class="metric-cell"><span class="metric-val" id="mThresh">—</span><span class="metric-key">Seuil auth.</span></div>
+    </div>
+    <svg id="trainChart" viewBox="0 0 340 150" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <script>
+    const video   = document.getElementById('video');
+    const canvas  = document.getElementById('canvas');
+    const authBtn = document.getElementById('authBtn');
+    const status  = document.getElementById('status');
+    const camWrap = document.getElementById('cameraWrap');
+
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      .then(stream => { video.srcObject = stream; status.textContent = 'Caméra prête.'; authBtn.disabled = false; })
+      .catch(()    => { status.textContent = 'Accès à la caméra refusé.'; });
+
+    authBtn.addEventListener('click', async () => {
+      authBtn.disabled = true;
+      status.textContent = 'Analyse en cours…';
+      camWrap.classList.add('scanning');
+
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const imageData = canvas.toDataURL('image/jpeg', 0.85);
+
+      await new Promise(r => setTimeout(r, 1200));
+
+      try {
+        const res  = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: imageData }),
+        });
+        const data = await res.json();
+        camWrap.classList.remove('scanning');
+
+        if (data.error) {
+          status.textContent = 'Erreur : ' + data.error;
+          authBtn.disabled = false;
+          return;
+        }
+
+        const params = new URLSearchParams({ conf: data.confidence, label: data.label });
+        window.location.href = (data.authorized ? '/success' : '/denied') + '?' + params;
+
+      } catch {
+        camWrap.classList.remove('scanning');
+        status.textContent = 'Erreur de connexion au serveur.';
+        authBtn.disabled = false;
+      }
+    });
+
+    /* ── Training stats ── */
+    async function loadStats() {
+      try {
+        const res  = await fetch('/model-stats');
+        const data = await res.json();
+        if (data.error) return;
+
+        document.getElementById('mEpochs').textContent  = data.total_epochs;
+        document.getElementById('mAcc').textContent     = data.final_accuracy + '%';
+        document.getElementById('mLoss').textContent    = data.final_loss;
+        document.getElementById('mThresh').textContent  = Math.round(data.threshold * 100) + '%';
+        document.getElementById('modelTag').textContent = data.model;
+        document.getElementById('statsCard').style.display = '';
+        drawChart(data.epochs);
+      } catch { /* keep panel hidden */ }
+    }
+
+    function drawChart(epochs) {
+      const svg = document.getElementById('trainChart');
+      const W = 340, H = 150;
+      const pad = { top: 18, right: 20, bottom: 30, left: 38 };
+      const pw = W - pad.left - pad.right, ph = H - pad.top - pad.bottom;
+      const n  = epochs.length;
+
+      const xPos = i => pad.left + (n < 2 ? pw / 2 : (i / (n - 1)) * pw);
+      const yAcc = v => pad.top  + (1 - v / 100) * ph;
+
+      const lossVals = epochs.map(e => e.val_loss);
+      const lMin = Math.min(...lossVals), lMax = Math.max(...lossVals);
+      const yLoss = v => pad.top + (1 - (v - lMin) / (lMax - lMin || 1)) * ph;
+
+      let grid = '';
+      [0, 50, 100].forEach(v => {
+        const y = yAcc(v);
+        grid += `<line x1="${pad.left}" y1="${y}" x2="${W - pad.right}" y2="${y}"
+                       stroke="#e5e7eb" stroke-width="1" ${v > 0 ? 'stroke-dasharray="4 3"' : ''}/>
+                 <text x="${pad.left - 6}" y="${y + 3.5}" text-anchor="end" font-size="9" fill="#9ca3af">${v}%</text>`;
+      });
+
+      const xLabels = epochs.map((e, i) =>
+        `<text x="${xPos(i)}" y="${H - pad.bottom + 14}" text-anchor="middle" font-size="9" fill="#9ca3af">${e.epoch}</text>`
+      ).join('');
+
+      const accPts  = epochs.map((e, i) => `${xPos(i)},${yAcc(e.accuracy)}`).join(' L');
+      const lossPts = epochs.map((e, i) => `${xPos(i)},${yLoss(e.val_loss)}`).join(' L');
+      const areaD   = `M${accPts} L${xPos(n-1)},${H - pad.bottom} L${xPos(0)},${H - pad.bottom} Z`;
+
+      svg.innerHTML = `
+        <defs>
+          <linearGradient id="accGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stop-color="#4f46e5" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#4f46e5" stop-opacity="0"/>
+          </linearGradient>
+          <clipPath id="drawClip">
+            <rect id="clipRect" x="${pad.left}" y="${pad.top - 4}" width="0" height="${ph + 8}"/>
+          </clipPath>
+        </defs>
+        ${grid}
+        <line x1="${pad.left}" y1="${pad.top}"         x2="${pad.left}"         y2="${H - pad.bottom}" stroke="#e5e7eb" stroke-width="1"/>
+        <line x1="${pad.left}" y1="${H - pad.bottom}"  x2="${W - pad.right}"    y2="${H - pad.bottom}" stroke="#e5e7eb" stroke-width="1"/>
+        <text x="${pad.left + pw/2}" y="${H - 1}" text-anchor="middle" font-size="9" fill="#9ca3af">Époque</text>
+        <path d="${areaD}"    fill="url(#accGrad)" clip-path="url(#drawClip)"/>
+        <path d="M${lossPts}" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="4 3"
+              stroke-linecap="round" stroke-linejoin="round" clip-path="url(#drawClip)"/>
+        <path d="M${accPts}"  fill="none" stroke="#4f46e5" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round" clip-path="url(#drawClip)"/>
+        ${epochs.map((e, i) => `<circle cx="${xPos(i)}" cy="${yAcc(e.accuracy)}" r="4"
+              fill="#4f46e5" stroke="white" stroke-width="2" clip-path="url(#drawClip)">
+              <title>Époque ${e.epoch} — Précision : ${e.accuracy}%</title></circle>`).join('')}
+        ${xLabels}
+        <rect x="${W - pad.right - 106}" y="${pad.top + 1}"  width="10" height="3" rx="1" fill="#4f46e5"/>
+        <text x="${W - pad.right - 92}"  y="${pad.top + 5}"  font-size="9" fill="#6b7280">Précision val.</text>
+        <line x1="${W - pad.right - 106}" y1="${pad.top + 14}" x2="${W - pad.right - 96}" y2="${pad.top + 14}"
+              stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <text x="${W - pad.right - 92}"  y="${pad.top + 18}" font-size="9" fill="#6b7280">Perte val.</text>
+      `;
+
+      const clipRect = document.getElementById('clipRect');
+      clipRect.style.transition = 'width 1.4s ease-in-out';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        clipRect.style.width = pw + 8;
+      }));
+    }
+
+    loadStats();
+  </script>
+</body>
+</html>

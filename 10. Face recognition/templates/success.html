@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Accès accordé</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #f0fdf4;
+      --surface:      #ffffff;
+      --text:         #1a1a2e;
+      --muted:        #6b7280;
+      --accent:       #059669;
+      --accent-light: #d1fae5;
+      --radius:       16px;
+      --shadow:       0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: var(--text);
+      padding: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      text-align: center;
+    }
+
+    /* ── Check icon ── */
+    .icon-wrap {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: var(--accent-light);
+      display: flex; align-items: center; justify-content: center;
+      animation: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .icon-wrap svg { width: 36px; height: 36px; stroke: var(--accent); }
+
+    h1 { font-size: 1.6rem; font-weight: 700; }
+    .subtitle { font-size: 0.95rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── Confidence block ── */
+    .conf-block {
+      width: 100%;
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .conf-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+    }
+
+    .ring-wrap { position: relative; width: 110px; height: 110px; }
+    .ring-svg  { width: 100%; height: 100%; }
+    .ring-center {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    }
+    .ring-center .pct  { font-size: 1.55rem; font-weight: 700; color: var(--accent); line-height: 1; }
+    .ring-center .lbl  { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .stat-row { display: flex; gap: 10px; width: 100%; }
+    .stat-pill {
+      flex: 1;
+      background: var(--accent-light);
+      border-radius: 8px;
+      padding: 8px 6px;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    .stat-pill .val { font-size: 0.92rem; font-weight: 700; color: var(--accent); }
+    .stat-pill .key { font-size: 0.63rem; color: var(--muted); }
+
+    /* ── Back link ── */
+    a {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 12px 28px;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.18s, transform 0.1s;
+    }
+    a:hover  { opacity: 0.88; }
+    a:active { transform: scale(0.97); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </div>
+
+    <h1>Bienvenue.</h1>
+    <p class="subtitle">Identité vérifiée. Accès accordé.</p>
+
+    <div class="conf-block">
+      <span class="conf-label">Résultat de la prédiction</span>
+
+      <div class="ring-wrap">
+        <svg class="ring-svg" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="38" fill="none" stroke="#e5e7eb"          stroke-width="8"/>
+          <circle cx="50" cy="50" r="38" fill="none" stroke="var(--accent)"    stroke-width="8"
+                  stroke-linecap="round" id="confArc"
+                  stroke-dasharray="238.76" stroke-dashoffset="238.76"
+                  transform="rotate(-90 50 50)"/>
+        </svg>
+        <div class="ring-center">
+          <span class="pct" id="confPct">—</span>
+          <span class="lbl">confiance</span>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-pill"><span class="val" id="labelVal">—</span><span class="key">Classe prédite</span></div>
+        <div class="stat-pill"><span class="val" id="confVal">—</span><span class="key">Score brut</span></div>
+      </div>
+    </div>
+
+    <a href="/">Retour à l'accueil</a>
+  </div>
+
+  <script>
+    const p    = new URLSearchParams(location.search);
+    const conf = parseFloat(p.get('conf') || '0');
+    const lbl  = p.get('label') || 'owner';
+
+    document.getElementById('labelVal').textContent = lbl;
+    document.getElementById('confVal').textContent  = (conf * 100).toFixed(1) + '%';
+
+    // Animate ring
+    const arc = document.getElementById('confArc');
+    arc.style.transition = 'stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1)';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      arc.style.strokeDashoffset = 238.76 * (1 - conf);
+    }));
+
+    // Count-up
+    const pctEl  = document.getElementById('confPct');
+    const target = Math.round(conf * 100);
+    let   cur    = 0;
+    const step   = () => { cur = Math.min(cur + Math.ceil(target / 30), target); pctEl.textContent = cur + '%'; if (cur < target) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  </script>
+</body>
+</html>

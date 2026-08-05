@@ -1,0 +1,7 @@
+google-genai
+python-dotenv
+flask
+transformers
+torch
+accelerate
+huggingface_hub
